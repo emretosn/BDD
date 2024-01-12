@@ -11,18 +11,18 @@ accessToken = config('1744266282088722432-uuHzANw9WcdcyErnCoguENmG92d8Bj')
 accessTokenSecret = config('K3nsyrWYSpANGCIApF967gpcgkv7p4fBEI6yGnCX7u6dD')
 bearerToken = config('AAAAAAAAAAAAAAAAAAAAADZUrwEAAAAAdVtQOn44x0jSyTfZOy%2BKJSqonvw%3DhwP9lWXVtrP4dTBTiBrdIggCaythIX2QdbWNGpMQ9aTCdjHLoh')
 
+tweet_count = 0
+MAX_TWEETS = 5
+
 logging.basicConfig(level=logging.INFO)
 producer = KafkaProducer(bootstrap_servers='localhost:9092')
 user_to_follow = 'example_user'
 topic_name = 'twitter'
 
 def twitterAuth():
-    # create the authentication object
     authenticate = tweepy.OAuthHandler(consumerKey, consumerSecret)
-    # set the access token and the access token secret
     authenticate.set_access_token(accessToken, accessTokenSecret)
     authenticate.secure = True
-    # create the API object
     api = tweepy.API(authenticate, wait_on_rate_limit=True)
     return api
 
@@ -39,12 +39,16 @@ class TweetListener(tweepy.StreamingClient):
             }
             producer.send(topic_name, value=json.dumps(data).encode('utf-8'))
 
+            tweet_count += 1
+            if tweet_count >= MAX_TWEETS:
+                logging.info(f"Maximum number of tweets ({MAX_TWEETS}) reached. Stopping stream.")
+                return False
+
         return True
 
     @staticmethod
     def on_error(status_code):
         if status_code == 420:
-            # returning False in on_data disconnects the stream
             return False
 
     def start_streaming_tweets(self, user_to_follow):
