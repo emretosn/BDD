@@ -52,7 +52,9 @@ class TweetListener(tweepy.StreamingClient):
             return False
 
     def start_streaming_tweets(self, user_to_follow):
-        self.add_rules(tweepy.StreamRule(follow=user_to_follow))
+        api = twitterAuth()
+        api.user_timeline(screen_name = 'danieltosh', count = 100, include_rts = True)
+        #self.add_rules(tweepy.StreamRule(follow=user_to_follow))
         self.filter()
 
 if __name__ == '__main__':

@@ -11,6 +11,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_SERVERS: zoo1:2888:3888
+    networks:
+      - mynetwork
 
   kafka1:
     image: confluentinc/cp-kafka:7.3.0
@@ -36,6 +38,8 @@ services:
       KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
     depends_on:
       - zoo1
+    networks:
+      - mynetwork
 
   spark:
     image: docker.io/bitnami/spark:3.5
@@ -48,6 +52,9 @@ services:
       - SPARK_USER=spark
     ports:
       - '8080:8080'
+    networks:
+      - mynetwork
+
   spark-worker:
     image: docker.io/bitnami/spark:3.5
     environment:
@@ -60,3 +67,8 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
       - SPARK_USER=spark
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:

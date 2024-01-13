@@ -7,7 +7,6 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 if __name__ == "__main__":
     findspark.init()
 
-    # Config
     spark = SparkSession \
         .builder \
         .master("local[*]") \
