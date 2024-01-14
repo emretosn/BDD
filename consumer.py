@@ -1,50 +1,37 @@
-import re
-import findspark
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, udf
-from pyspark.sql.types import StructType, StructField, StringType, ArrayType
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 
-if __name__ == "__main__":
-    findspark.init()
+spark = SparkSession.builder \
+    .appName("YahooFinanceStreaming") \
+    .getOrCreate()
 
-    spark = SparkSession \
-        .builder \
-        .master("local[*]") \
-        .appName("TwitterSparkQuery") \
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.2") \
-        .getOrCreate()
+schema = StructType([
+    StructField("Date", TimestampType(), True),
+    StructField("Open", DoubleType(), True),
+    StructField("High", DoubleType(), True),
+    StructField("Low", DoubleType(), True),
+    StructField("Close", DoubleType(), True),
+    StructField("Volume", IntegerType(), True),
+])
 
-    sc = spark.sparkContext
-    sc.setLogLevel('ERROR')
+df = spark.readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("subscribe", "yahoo-finance") \
+    .load()
 
-    schema = StructType([StructField("message", StringType())])
+df = df.selectExpr("CAST(value AS STRING) as json")
+df = df.select(from_json("json", schema).alias("data")).select("data.*")
 
-    df = spark \
-        .readStream \
-        .format("kafka") \
-        .option("kafka.bootstrap.servers", "localhost:9092") \
-        .option("subscribe", "twitter") \
-        .option("startingOffsets", "latest") \
-        .option("header", "true") \
-        .load() \
-        .selectExpr("CAST(value AS STRING) as message")
+# Process data with SparkSQL
+movingAvg = df.withWatermark("Date", "1 minute").groupBy(
+    window("Date", "5 minutes")).agg(avg("Close").alias("MovingAverage"))
 
-    df = df \
-        .withColumn("value", from_json("message", schema))
+# Start the streaming query
+query = movingAvg.writeStream \
+    .outputMode("complete") \
+    .format("console") \
+    .start()
 
-    pre_process = udf(
-        lambda x: re.sub(r'[^A-Za-z\n ]|(http\S+)|(www.\S+)', '', x.lower().strip()).split(), ArrayType(StringType())
-    )
-    df = df.withColumn("cleaned_data", pre_process(df.message)).dropna()
-
-    output_path = "localdata"
-
-    query = df \
-        .writeStream \
-        .outputMode("append") \
-        .format("json") \
-        .option("path", output_path) \
-        .option("checkpointLocation", "path/to/checkpoint/directory") \
-        .start()
-
-    query.awaitTermination()
+query.awaitTermination()
