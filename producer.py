@@ -3,7 +3,6 @@ from kafka import KafkaProducer
 import json
 import time
 
-# Kafka producer
 producer = KafkaProducer(bootstrap_servers='localhost:9092',
                          value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 
@@ -18,7 +17,6 @@ def send_to_kafka(topic, data):
         producer.send(topic, record)
         producer.flush()
 
-# Continuously fetch and send data
 def continuous_fetch_and_send(symbol, topic):
     while True:
         data = fetch_data(symbol)
