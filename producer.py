@@ -21,7 +21,7 @@ def continuous_fetch_and_send(symbol, topic):
     while True:
         data = fetch_data(symbol)
         send_to_kafka(topic, data)
-        time.sleep(60)  # Fetch data every minute
+        time.sleep(60)  # Yahoo Finance allows every minute
 
 # Start the process for a symbol, e.g., AAPL
 continuous_fetch_and_send('AAPL', 'yahoo-finance')
