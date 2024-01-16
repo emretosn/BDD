@@ -4,6 +4,7 @@ from pyspark.sql.types import *
 
 spark = SparkSession.builder \
     .appName("YahooFinanceStreaming") \
+    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.0") \
     .getOrCreate()
 
 schema = StructType([
@@ -25,23 +26,27 @@ df = spark.readStream \
 df = df.selectExpr("CAST(value AS STRING) as json")
 df = df.select(from_json("json", schema).alias("data")).select("data.*")
 
+# Register the DataFrame as a temporary SQL table
+df.createOrReplaceTempView("stock_data")
+
 # Process data with SparkSQL
-query1 = "SELECT Date, Close FROM stock_data WHERE Close > 100 ORDER BY Date"
-result = spark.sql(query1)
+moving_average = "SELECT window(Datetime, '5 minutes') as Window, AVG(Close) as MovingAverage FROM stock_data GROUP BY window(Datetime, '5 minutes')"
+moving_average_result = spark.sql(moving_average)
 
-
-movingAvg = df.withWatermark("Date", "1 minute").groupBy(
-    window("Date", "5 minutes")).agg(avg("Close").alias("MovingAverage"))
+avg_price = "SELECT window(Datetime, '5 minutes') as Window, AVG((Open + High + Low + Close) / 4) as AvgPrice FROM stock_data GROUP BY window(Datetime, '5 minutes')"
+avg_price_result = spark.sql(avg_price)
 
 # Start the streaming query
-query1 = result.writeStream \
-    .outputMode("append") \
-    .format("console") \
-    .start()
-
-query2 = movingAvg.writeStream \
+query1 = moving_average_result.writeStream \
     .outputMode("complete") \
     .format("console") \
+    .option("truncate", "false") \
+    .start()
+
+query2 = avg_price_result.writeStream \
+    .outputMode("complete") \
+    .format("console") \
+    .option("truncate", "false") \
     .start()
 
 query1.awaitTermination()
