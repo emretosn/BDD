@@ -30,11 +30,27 @@ df = df.select(from_json("json", schema).alias("data")).select("data.*")
 df.createOrReplaceTempView("stock_data")
 
 # Process data with SparkSQL
-moving_average = "SELECT window(Datetime, '5 minutes') as Window, AVG(Close) as MovingAverage FROM stock_data GROUP BY window(Datetime, '5 minutes')"
+moving_average = """
+    SELECT window(Datetime, '5 minutes') as Window, AVG(Close) as MovingAverage 
+    FROM stock_data 
+    GROUP BY window(Datetime, '5 minutes')
+"""
 moving_average_result = spark.sql(moving_average)
 
-avg_price = "SELECT window(Datetime, '5 minutes') as Window, AVG((Open + High + Low + Close) / 4) as AvgPrice FROM stock_data GROUP BY window(Datetime, '5 minutes')"
+avg_price = """
+    SELECT window(Datetime, '5 minutes') as Window, AVG((Open + High + Low + Close) / 4) as AvgPrice 
+    FROM stock_data 
+    GROUP BY window(Datetime, '5 minutes')
+"""
 avg_price_result = spark.sql(avg_price)
+
+daily_price_range = """
+    SELECT window(Datetime, '1 day') as Window, MAX(High) - MIN(Low) as DailyPriceRange 
+    FROM stock_data 
+    GROUP BY window(Datetime, '1 day')
+"""
+daily_price_range_result = spark.sql(daily_price_range)
+
 
 # Start the streaming query
 query1 = moving_average_result.writeStream \
@@ -49,5 +65,12 @@ query2 = avg_price_result.writeStream \
     .option("truncate", "false") \
     .start()
 
+query3 = daily_price_range_result.writeStream \
+    .outputMode("complete") \
+    .format("console") \
+    .option("truncate", "false") \
+    .start()
+
 query1.awaitTermination()
 query2.awaitTermination()
+query3.awaitTermination()
