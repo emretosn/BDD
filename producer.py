@@ -9,6 +9,9 @@ producer = KafkaProducer(bootstrap_servers='localhost:9092',
 # Fetch data from Yahoo Finance
 def fetch_data(symbol):
     data = yf.download(tickers=symbol, period='1d', interval='1m')
+    data = data.iloc[-1:]
+    data = data.reset_index()
+    data['Datetime'] = data['Datetime'].dt.strftime('%Y-%m-%d %H:%M:%S%z')
     return data.to_dict(orient="records")
 
 # Send data to Kafka

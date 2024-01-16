@@ -12,4 +12,5 @@ ENV SPARK_MASTER=spark://spark:4040
 
 EXPOSE 9092 9093 4040
 
-CMD ["python", "orchestrator.py"]
+# Overriden by docker-compose.yaml
+CMD ["python", "docker-compose.yaml"]
